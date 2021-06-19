@@ -1,11 +1,79 @@
 library(shiny)
+library(shinyjs)
 library(DT)
 
 # Number of years R has been around:
 yrs <- \() {Sys.Date() |> format("%Y") |> as.integer()} - 1993
 
+# Mandatory fields:
+mandatory_fields <- c("name", "favpkg", "n_yrs")
+
+
+# ----------------------------------------------------------------------
+
+# Show mandatory_fields in the UI by adding a red star to them;
+
+# First define the needed CSS:
+mandatory_star <- ".mand_star { color: red;}"
+
+# We'll add that CSS to the app by calling shinyjs::inlineCSS(mandatory_star)
+# in the UI
+
+# Now define a function to add a star after a mandatory label:
+label_mandatory <- function(label) {
+  tagList(
+    label,
+    span("*", class = "mand_star")
+  )
+}
+
+# To use that we'll wrap each mandatory `label` in `label_mandatory()`
+
+# ------------------------------------------------------------------------
+
+# Define the fields to save:
+fields <- c("name", "favpkg", "used_shiny", "n_yrs", "os")
+
+outputDir <- "responses"
+
+# Function to save additional data:
+saveData <- function(data) {
+  current <- data |> t() |> as.data.frame()
+  current$timestamp <- Sys.time()
+
+  # create a unique file name:
+  filename <- sprintf("%s_%s", as.integer(Sys.time()), digest::digest(current))
+
+  # write the file to the local system:
+  write.csv(
+    x = current,
+    file = file.path(outputDir, filename),
+    row.names = FALSE, quote = TRUE
+  )
+}
+
+# ------------------------------------------------------------------------
+
+# Function to load the saved data:
+loadData <- function() {
+  # read all files into a list:
+  files <- list.files(outputDir, full.names = TRUE)
+  file_list <- lapply(files, read.csv, stringsAsFactors = FALSE)
+
+  # concatenate into one data.frame:
+  do.call(rbind, file_list)
+}
+
+# ------------------------------------------------------------------------
+
+
 ui <- fluidPage(
+  shinyjs::useShinyjs(),
+  shinyjs::inlineCSS(mandatory_star),
+
+  # Include the header html created:
   includeHTML("header.html"),
+
 
   fluidRow(
     # Input column:
@@ -16,12 +84,12 @@ ui <- fluidPage(
 
       textInput(
         inputId = "name",
-        label = "Name"
+        label = "Name" |> label_mandatory()
       ),
 
       textInput(
         inputId = "favpkg",
-        label = "Favourite R package"
+        label = "Favourite R package" |> label_mandatory()
       ),
 
       checkboxInput(
@@ -31,7 +99,7 @@ ui <- fluidPage(
 
       numericInput(
         inputId = "n_yrs",
-        label = "Number of years using R",
+        label = "Number of years using R" |> label_mandatory(),
         value = 0,
         min = 0, max = yrs()
       ),
@@ -42,12 +110,15 @@ ui <- fluidPage(
         choices = c("Windows", "MacOS", "Linux", "Other")
       ),
 
-      submitButton(
-        text = "Submit"
+      # Submit button:
+      actionButton(
+        inputId = "submit",
+        label = "Submit",
+        class = "btn-success"
       ),
 
       # width of this column:
-      width = 4,
+      width = 3,
 
       offset = 1
     ),
@@ -58,28 +129,81 @@ ui <- fluidPage(
       # Download button:
       downloadButton(
         outputId = "download_table",
-        label = "Download responses"
+        label = "Download responses",
+        class = "btn-success"
       ),
 
       p(br()),
 
       # The table:
       DT::dataTableOutput(
-        outputId = "collected"
+        outputId = "previous"
       ),
 
       # width of this column:
-      width = 5,
+      width = 6,
 
       offset = 1
     )
   )
 )
 
+# ---------------------------------------------------------------------------
+
 server <- function(input, output, session) {
-  output$collected <- DT::renderDataTable({
-    DT::datatable(iris, filter = "none")
+  # Whenever a field is filled, aggregate the form data:
+  formData <- reactive({
+    sapply(X = fields, FUN = \(x) input[[x]])
   })
+
+  # When the submit button is clicked, save the form data:
+  observeEvent(
+    eventExpr = input$submit,
+    handlerExpr = {
+      saveData(formData())
+    }
+  )
+
+  # Show previous submissions; Update with current response when the
+  # submit button is clicked:
+  output$previous <- DT::renderDataTable({
+    input$submit
+    loadData()
+  },
+  colnames = c("Name", "Favourite R Package", "Used shiny before",
+               "Years of using R", "Operating System", "timestamp")
+  )
+
+  observe({
+    # function to check if all mandatory fields have a value:
+    mand_condition <- function() {
+      mandatory_fields |>
+        vapply(
+          FUN = \(x) !is.null(input[[x]]) && input[[x]] != "",
+          FUN.VALUE = logical(1)
+        ) |>
+        all()
+    }
+
+    # Enable/Disable the submit button:
+    shinyjs::toggleState(
+      id = "submit",
+      condition = mand_condition()
+    )}
+  )
+
+  # Download button:
+  output$download_table <- downloadHandler(
+    filename = function() {
+      paste0("responses-", Sys.Date(), ".csv")
+    },
+
+    content = function(file) {
+      write.csv(
+        loadData(), file, row.names = FALSE
+      )
+    }
+  )
 }
 
 shinyApp(ui, server)
