@@ -1,12 +1,13 @@
 library(shiny)
 library(shinyjs)
+library(shinyvalidate)
 library(DT)
 
 # Number of years R has been around:
 yrs <- \() {Sys.Date() |> format("%Y") |> as.integer()} - 1993
 
 # Mandatory fields:
-mandatory_fields <- c("name", "favpkg", "n_yrs")
+mandatory_fields <- c("name", "favpkg", "os")
 
 
 # ----------------------------------------------------------------------
@@ -57,7 +58,7 @@ saveData <- function(data) {
 # Function to load the saved data:
 loadData <- function() {
   # read all files into a list:
-  files <- list.files(outputDir, full.names = TRUE)
+  files <- list.files(outputDir, full.names = TRUE) |> rev()
   file_list <- lapply(files, read.csv, stringsAsFactors = FALSE)
 
   # concatenate into one data.frame:
@@ -78,43 +79,57 @@ ui <- fluidPage(
   fluidRow(
     # Input column:
     column(
-      p(h2("Your Details:")),
+      div(id = "form",
+          p(h2("Your Details:")),
 
-      p(br()),
+          p(br()),
 
-      textInput(
-        inputId = "name",
-        label = "Name" |> label_mandatory()
-      ),
+          textInput(
+            inputId = "name",
+            label = "Name" |> label_mandatory()
+          ),
 
-      textInput(
-        inputId = "favpkg",
-        label = "Favourite R package" |> label_mandatory()
-      ),
+          textInput(
+            inputId = "favpkg",
+            label = "Favourite R package" |> label_mandatory()
+          ),
 
-      checkboxInput(
-        inputId = "used_shiny",
-        label = "I've built a shiny app in R before"
-      ),
+          checkboxInput(
+            inputId = "used_shiny",
+            label = "I've built a shiny app in R before"
+          ),
 
-      numericInput(
-        inputId = "n_yrs",
-        label = "Number of years using R" |> label_mandatory(),
-        value = 0,
-        min = 0, max = yrs()
-      ),
+          numericInput(
+            inputId = "n_yrs",
+            label = "Number of years using R",
+            value = 0,
+            min = 0, max = yrs()
+          ),
 
-      selectInput(
-        inputId = "os",
-        label = "Operating System used most frequently",
-        choices = c("Windows", "MacOS", "Linux", "Other")
-      ),
+          selectInput(
+            inputId = "os",
+            label = "Operating System used most frequently" |>
+              label_mandatory(),
+            choices = c("", "Windows", "MacOS", "Linux", "Other")
+          ),
 
-      # Submit button:
-      actionButton(
-        inputId = "submit",
-        label = "Submit",
-        class = "btn-success"
+          # Submit button:
+          actionButton(
+            inputId = "submit",
+            label = "Submit",
+            class = "btn-success"
+          )
+          ),
+
+      # Thank you section:
+      shinyjs::hidden(
+        div(id = "thanks_msg",
+            h3("Thanks, your response was submitted successfully!"),
+            actionLink(
+              inputId = "submit_another",
+              label = "Submit another reponse"
+            )
+            )
       ),
 
       # width of this column:
@@ -151,16 +166,56 @@ ui <- fluidPage(
 # ---------------------------------------------------------------------------
 
 server <- function(input, output, session) {
+  # validate input fields; os;
+  # 1. Create an InputValidator object:
+  iv <- InputValidator$new()
+
+  # 2. Add validation rules:
+  iv$add_rule("name", sv_required())
+  iv$add_rule("favpkg", sv_required())
+  iv$add_rule("os", \(value) {
+    if (value == "") {
+      "Required"
+    }
+  }
+  )
+
+  # 3. Start displaying errors in the UI:
+  iv$enable()
+
   # Whenever a field is filled, aggregate the form data:
   formData <- reactive({
+    # 4. Do not proceed if any input is invalid:
+    req(iv$is_valid())
+
     sapply(X = fields, FUN = \(x) input[[x]])
   })
 
-  # When the submit button is clicked, save the form data:
+  # When the submit button is clicked:
   observeEvent(
-    eventExpr = input$submit,
+    eventExpr = {
+      input$submit
+    },
     handlerExpr = {
+      # save the data:
       saveData(formData())
+
+      # Reset the form:
+      shinyjs::reset(id = "form")
+
+      # Hide the form:
+      shinyjs::hide(id = "form")
+
+      shinyjs::show(id = "thanks_msg")
+    }
+  )
+
+  # Observer for `submit another response`:
+  observeEvent(
+    eventExpr = input$submit_another,
+    handlerExpr = {
+      shinyjs::show(id = "form")
+      shinyjs::hide(id = "thanks_msg")
     }
   )
 
@@ -191,6 +246,7 @@ server <- function(input, output, session) {
       condition = mand_condition()
     )}
   )
+
 
   # Download button:
   output$download_table <- downloadHandler(
