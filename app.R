@@ -38,6 +38,13 @@ label_mandatory <- function(label) {
 
 # ------- <-- Set up aws.s3 --> ------
 # *********  My details  *************
+s3_bucket_name <- "**"
+acc_key_id <- "**"
+sec_acc_key <- "**"
+region <- "us-east-2"
+Sys.setenv("AWS_ACCESS_KEY_ID" = acc_key_id,
+           "AWS_SECRET_ACCESS_KEY" = sec_acc_key,
+           "AWS_DEFAULT_REGION" = region)
 # ------------------------------------
 
 # Define the fields to save:
