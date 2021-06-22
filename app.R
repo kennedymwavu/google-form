@@ -2,6 +2,8 @@ library(shiny)
 library(shinyjs)
 library(shinyvalidate)
 library(DT)
+library(digest)
+library(aws.s3)
 
 # Number of years R has been around:
 yrs <- \() {Sys.Date() |> format("%Y") |> as.integer()} - 1993
@@ -31,38 +33,67 @@ label_mandatory <- function(label) {
 # To use that we'll wrap each mandatory `label` in `label_mandatory()`
 
 # ------------------------------------------------------------------------
+# Storage of user responses:
+# ------------------------------------------------------------------------
+
+# ------- <-- Set up aws.s3 --> ------
+# *********  My details  *************
+# ------------------------------------
 
 # Define the fields to save:
 fields <- c("name", "favpkg", "used_shiny", "n_yrs", "os")
 
-outputDir <- "responses"
 
 # Function to save additional data:
 saveData <- function(data) {
   current <- data |> t() |> as.data.frame()
-  current$timestamp <- Sys.time()
+  current$timestamp <- Sys.time() |> as.character()
 
-  # create a unique file name:
-  filename <- sprintf("%s_%s", as.integer(Sys.time()), digest::digest(current))
-
-  # write the file to the local system:
-  write.csv(
-    x = current,
-    file = file.path(outputDir, filename),
-    row.names = FALSE, quote = TRUE
+  # Create a plain text representation of the data:
+  plain_text <- paste0(
+    paste(names(current), collapse = ","), "\n",
+    paste(unname(current), collapse = ",")
   )
+
+  file_name <- paste0(
+    paste(
+      Sys.time() |> as.integer(),
+      digest(plain_text, algo = "md5"),
+      sep = "_"
+    ),
+    ".csv"
+  )
+
+  # Upload the file to s3:
+  put_object(file = charToRaw(plain_text), object = file_name,
+             bucket = s3_bucket_name)
 }
 
 # ------------------------------------------------------------------------
 
 # Function to load the saved data:
 loadData <- function() {
-  # read all files into a list:
-  files <- list.files(outputDir, full.names = TRUE) |> rev()
-  file_list <- lapply(files, read.csv, stringsAsFactors = FALSE)
+  # Get a list of all files:
+  file_names <- get_bucket(s3_bucket_name) |>
+    lapply(FUN = \(x) x[["Key"]]) |> rev()
+
+
+
+  file_list <- lapply(file_names, FUN = \(x) {
+    x |> get_object(s3_bucket_name) |>
+      readBin(what = "character") |> {
+        \(x) read.csv(text = x, stringsAsFactors = FALSE)
+      }()
+  }
+  )
 
   # concatenate into one data.frame:
-  do.call(rbind, file_list)
+  file_df <- do.call(rbind, file_list)
+
+  # Row names are unnecessary, remove them:
+  rownames(file_df) <- NULL
+
+  file_df
 }
 
 # ------------------------------------------------------------------------
@@ -188,6 +219,7 @@ server <- function(input, output, session) {
     # 4. Do not proceed if any input is invalid:
     req(iv$is_valid())
 
+    # k <<- sapply(X = fields, FUN = \(x) input[[x]])
     sapply(X = fields, FUN = \(x) input[[x]])
   })
 
