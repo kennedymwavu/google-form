@@ -38,9 +38,9 @@ label_mandatory <- function(label) {
 
 # ------- <-- Set up aws.s3 --> ------
 # *********  My details  *************
-s3_bucket_name <- "**"
-acc_key_id <- "**"
-sec_acc_key <- "**"
+s3_bucket_name <- "*"
+acc_key_id <- "*"
+sec_acc_key <- "*"
 region <- "us-east-2"
 Sys.setenv("AWS_ACCESS_KEY_ID" = acc_key_id,
            "AWS_SECRET_ACCESS_KEY" = sec_acc_key,
@@ -106,57 +106,61 @@ loadData <- function() {
 # ------------------------------------------------------------------------
 
 
-ui <- fluidPage(
+ui <- div(
+  id = "page",
+  fluidPage(
   shinyjs::useShinyjs(),
   shinyjs::inlineCSS(mandatory_star),
+  includeCSS("styles.css"),
 
-  # Include the header html created:
-  includeHTML("header.html"),
-
+  div(id = "headerhtml",
+      # Include the header html created:
+      includeHTML("header.html")
+      ),
 
   fluidRow(
     # Input column:
     column(
       div(id = "form",
-          p(h2("Your Details:")),
+          div(id = "form_format",
+              p(h2("Your Details:")),
 
-          p(br()),
+              textInput(
+                inputId = "name",
+                label = "Name" |> label_mandatory()
+              ),
 
-          textInput(
-            inputId = "name",
-            label = "Name" |> label_mandatory()
-          ),
+              textInput(
+                inputId = "favpkg",
+                label = "Favourite R package" |> label_mandatory()
+              ),
 
-          textInput(
-            inputId = "favpkg",
-            label = "Favourite R package" |> label_mandatory()
-          ),
+              checkboxInput(
+                inputId = "used_shiny",
+                label = "I've built a shiny app in R before"
+              ),
 
-          checkboxInput(
-            inputId = "used_shiny",
-            label = "I've built a shiny app in R before"
-          ),
+              numericInput(
+                inputId = "n_yrs",
+                label = "Number of years using R",
+                value = 0,
+                min = 0, max = yrs()
+              ),
 
-          numericInput(
-            inputId = "n_yrs",
-            label = "Number of years using R",
-            value = 0,
-            min = 0, max = yrs()
-          ),
+              selectInput(
+                inputId = "os",
+                label = "Operating System used most frequently" |>
+                  label_mandatory(),
+                choices = c("", "Windows", "MacOS", "Linux", "Other")
+              ),
 
-          selectInput(
-            inputId = "os",
-            label = "Operating System used most frequently" |>
-              label_mandatory(),
-            choices = c("", "Windows", "MacOS", "Linux", "Other")
-          ),
-
-          # Submit button:
-          actionButton(
-            inputId = "submit",
-            label = "Submit",
-            class = "btn-success"
-          )
+              # Submit button:
+              actionButton(
+                inputId = "submit",
+                label = "Submit",
+                class = "btn-success"
+              )
+              )
           ),
 
       # Thank you section:
@@ -171,34 +175,34 @@ ui <- fluidPage(
       ),
 
       # width of this column:
-      width = 3,
-
-      offset = 1
-    ),
+      width = 3
+      ),
 
     # output/table column:
     column(
-      p(h2("Previous Responses")),
-      # Download button:
-      downloadButton(
-        outputId = "download_table",
-        label = "Download responses",
-        class = "btn-success"
+      div(
+        id = "responses",
+        p(h2("Previous Responses")),
+        # Download button:
+        downloadButton(
+          outputId = "download_table",
+          label = "Download responses",
+          class = "btn-success"
+        ),
+
+        p(br()),
+
+        # The table:
+        DT::dataTableOutput(
+          outputId = "previous"
+        )
       ),
-
-      p(br()),
-
-      # The table:
-      DT::dataTableOutput(
-        outputId = "previous"
-      ),
-
       # width of this column:
-      width = 6,
+      width = 8
+      )
 
-      offset = 1
-    )
   )
+)
 )
 
 # ---------------------------------------------------------------------------
