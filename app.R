@@ -112,6 +112,7 @@ ui <- div(
   shinyjs::useShinyjs(),
   shinyjs::inlineCSS(mandatory_star),
   includeCSS("styles.css"),
+  title = "Shiny Exhibition",
 
   div(id = "headerhtml",
       # Include the header html created:
