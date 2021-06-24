@@ -1,11 +1,18 @@
 #page {
-  background: #DDDDDD;
+  background-color: #DDDDDD;
+  color: black;
 
   margin-bottom: 0;
 
   height: 100%;
   width: 100%;
 }
+
+body {
+  background-color: #DDDDDD;
+  color: black; /* text color */
+}
+
 
 #headerhtml {
   margin-left: 0;
