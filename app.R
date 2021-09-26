@@ -8,11 +8,8 @@ library(aws.s3)
 # Number of years R has been around:
 yrs <- \() {Sys.Date() |> format("%Y") |> as.integer()} - 1993
 
-# Mandatory fields:
+# ---- Mand fields----
 mandatory_fields <- c("name", "favpkg", "os")
-
-
-# ----------------------------------------------------------------------
 
 # Show mandatory_fields in the UI by adding a red star to them;
 
@@ -32,21 +29,18 @@ label_mandatory <- function(label) {
 
 # To use that we'll wrap each mandatory `label` in `label_mandatory()`
 
-# ------------------------------------------------------------------------
-# Storage of user responses:
-# ------------------------------------------------------------------------
-
-# ------- <-- Set up aws.s3 --> ------
+# ---storage----
+# Set up aws.s3
 # *********  My details  *************
-s3_bucket_name <- "*"
-acc_key_id <- "*"
-sec_acc_key <- "*"
-region <- "us-east-2"
-Sys.setenv("AWS_ACCESS_KEY_ID" = acc_key_id,
-           "AWS_SECRET_ACCESS_KEY" = sec_acc_key,
-           "AWS_DEFAULT_REGION" = region)
-# ------------------------------------
+# s3_bucket_name <- "*"
+# acc_key_id <- "*"
+# sec_acc_key <- "*"
+# region <- "us-east-2"
+# Sys.setenv("AWS_ACCESS_KEY_ID" = acc_key_id,
+#            "AWS_SECRET_ACCESS_KEY" = sec_acc_key,
+#            "AWS_DEFAULT_REGION" = region)
 
+# ---- Saving----
 # Define the fields to save:
 fields <- c("name", "favpkg", "used_shiny", "n_yrs", "os")
 
@@ -76,9 +70,7 @@ saveData <- function(data) {
              bucket = s3_bucket_name)
 }
 
-# ------------------------------------------------------------------------
-
-# Function to load the saved data:
+# ----Loading----
 loadData <- function() {
   # Get a list of all files:
   file_names <- get_bucket(s3_bucket_name) |>
@@ -103,9 +95,7 @@ loadData <- function() {
   file_df
 }
 
-# ------------------------------------------------------------------------
-
-
+# ----UI----
 ui <- div(
   id = "page",
   fluidPage(
@@ -206,8 +196,7 @@ ui <- div(
 )
 )
 
-# ---------------------------------------------------------------------------
-
+# ----Server----
 server <- function(input, output, session) {
   # validate input fields; os;
   # 1. Create an InputValidator object:
