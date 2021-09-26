@@ -1,6 +1,7 @@
 library(shiny)
 library(shinyjs)
 library(shinyvalidate)
+library(shinycssloaders)
 library(DT)
 library(digest)
 library(aws.s3)
@@ -99,101 +100,108 @@ loadData <- function() {
 ui <- div(
   id = "page",
   fluidPage(
-  shinyjs::useShinyjs(),
-  shinyjs::inlineCSS(mandatory_star),
-  includeCSS("styles.css"),
-  title = "Shiny Exhibition",
+    shinyjs::useShinyjs(),
+    shinyjs::inlineCSS(mandatory_star),
+    includeCSS("styles.css"),
+    title = "Shiny Exhibition",
 
-  div(id = "headerhtml",
-      # Include the header html created:
-      includeHTML("header.html")
-      ),
+    div(id = "headerhtml",
+        # Include the header html created:
+        includeHTML("header.html")
+    ),
 
-  fluidRow(
-    # Input column:
-    column(
-      div(id = "form",
-          div(id = "form_format",
-              p(h2("Your Details:")),
+    fluidRow(
+      sidebarLayout(
+        sidebarPanel = sidebarPanel(
+          # ----.form----
+          div(id = "form",
+              div(id = "form_format",
+                  p(h2("Your Details:")),
 
-              textInput(
-                inputId = "name",
-                label = "Name" |> label_mandatory()
-              ),
+                  textInput(
+                    inputId = "name",
+                    label = "Name" |> label_mandatory()
+                  ),
 
-              textInput(
-                inputId = "favpkg",
-                label = "Favourite R package" |> label_mandatory()
-              ),
+                  textInput(
+                    inputId = "favpkg",
+                    label = "Favourite R package" |> label_mandatory()
+                  ),
 
-              checkboxInput(
-                inputId = "used_shiny",
-                label = "I've built a shiny app in R before"
-              ),
+                  checkboxInput(
+                    inputId = "used_shiny",
+                    label = "I've built a shiny app in R before"
+                  ),
 
-              numericInput(
-                inputId = "n_yrs",
-                label = "Number of years using R",
-                value = 0,
-                min = 0, max = yrs()
-              ),
+                  numericInput(
+                    inputId = "n_yrs",
+                    label = "Number of years using R",
+                    value = 0,
+                    min = 0, max = yrs()
+                  ),
 
-              selectInput(
-                inputId = "os",
-                label = "Operating System used most frequently" |>
-                  label_mandatory(),
-                choices = c("", "Windows", "MacOS", "Linux", "Other")
-              ),
+                  selectInput(
+                    inputId = "os",
+                    label = "Operating System used most frequently" |>
+                      label_mandatory(),
+                    choices = c("", "Windows", "MacOS", "Linux", "Other")
+                  ),
 
-              # Submit button:
-              actionButton(
-                inputId = "submit",
-                label = "Submit",
-                class = "btn-success"
-              )
+                  # Submit button:
+                  actionButton(
+                    inputId = "submit",
+                    label = "Submit",
+                    class = "btn-success"
+                  )
               )
           ),
 
-      # Thank you section:
-      shinyjs::hidden(
-        div(id = "thanks_msg",
-            h3("Thanks, your response was submitted successfully!"),
-            actionLink(
-              inputId = "submit_another",
-              label = "Submit another reponse"
+          # Thank you section:
+          shinyjs::hidden(
+            div(id = "thanks_msg",
+                h3("Thanks, your response was submitted successfully!"),
+                actionLink(
+                  inputId = "submit_another",
+                  label = "Submit another reponse"
+                )
             )
-            )
-      ),
-
-      # width of this column:
-      width = 3
-      ),
-
-    # output/table column:
-    column(
-      div(
-        id = "responses",
-        p(h2("Previous Responses")),
-        # Download button:
-        downloadButton(
-          outputId = "download_table",
-          label = "Download responses",
-          class = "btn-success"
+          )
         ),
 
-        p(br()),
+        mainPanel = mainPanel(
+          # ----.responses----
+          div(
+            id = "responses",
+            p(h2("Previous Responses")),
 
-        # The table:
-        DT::dataTableOutput(
-          outputId = "previous"
+            p(br()),
+
+            column(
+              width = 12,
+
+              # The table:
+              DT::dataTableOutput(
+                outputId = "previous"
+              ) |> withSpinner(type = 7)
+            ),
+
+            column(
+              width = 12,
+              align = "center",
+
+              # Download button:
+              downloadButton(
+                outputId = "download_table",
+                label = "Download responses",
+                class = "btn-success"
+              )
+            )
+          )
         )
-      ),
-      # width of this column:
-      width = 8
       )
 
+    )
   )
-)
 )
 
 # ----Server----
